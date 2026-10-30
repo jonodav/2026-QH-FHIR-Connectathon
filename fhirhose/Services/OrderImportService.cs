@@ -29,8 +29,10 @@ public sealed class OrderImportService
         var created = 0;
         var updated = 0;
 
-        await foreach (var resource in _fhirOrderService.GetOrdersAsync(cancellationToken))
+        await foreach (var order in _fhirOrderService.GetOrdersAsync(cancellationToken))
         {
+            var resource = order.ServiceRequest;
+
             if (string.IsNullOrWhiteSpace(resource.Id))
             {
                 _logger.LogWarning("Skipping ServiceRequest without a resource ID");
@@ -61,7 +63,7 @@ public sealed class OrderImportService
                 updated++;
             }
 
-            Map(resource, pathOrder);
+            Map(order, pathOrder);
             processed++;
 
             if (processed % 100 == 0)
@@ -83,8 +85,9 @@ public sealed class OrderImportService
             updated);
     }
 
-    private void Map(ServiceRequest source, PathologyOrder destination)
+    private void Map(FhirOrder order, PathologyOrder destination)
     {
+        var source = order.ServiceRequest;
         var identifier = source.Identifier.FirstOrDefault();
         var coding = source.Code?.Coding.FirstOrDefault();
 
@@ -102,13 +105,22 @@ public sealed class OrderImportService
         destination.EncounterReference = source.Encounter?.Reference;
         destination.RequesterReference = source.Requester?.Reference;
 
-        destination.RequisitionGroupNumber = source.Requisition?.Value;
+        destination.RequisitionGroupNumber =
+            source.Requisition?.Value ?? order.GroupTask.GroupIdentifier?.Value;
         destination.RequisitionNumber = source.IdElement?.Value;
 
         destination.AuthoredOn = source.AuthoredOn;
-        destination.FhirLastUpdated = source.Meta?.LastUpdated?.UtcDateTime;
+        // A change to any Task in the group (e.g. a cancellation) should re-trigger translation.
+        destination.FhirLastUpdated = new[]
+            {
+                source.Meta?.LastUpdated,
+                order.DiagnosticRequestTask.Meta?.LastUpdated,
+                order.GroupTask.Meta?.LastUpdated
+            }
+            .Max()?.UtcDateTime;
 
-        destination.RawJson = _serializer.SerializeToString(source);
+        // The converter expects a Bundle containing the ServiceRequest and its referenced resources.
+        destination.RawJson = _serializer.SerializeToString(order.Bundle);
 
         destination.UpdatedAtUtc = DateTime.UtcNow;
     }

@@ -1,3 +1,6 @@
 {
-    "dotnet.defaultSolution": "fhirhose.slnx"
+    "dotnet.defaultSolution": "fhirhose.slnx",
+    "code-runner.executorMap": {
+        "csharp": "cd $workspaceRoot/fhirhose && dotnet run"
+    }
 }

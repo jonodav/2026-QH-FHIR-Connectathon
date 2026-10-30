@@ -2,7 +2,7 @@ namespace fhirhose.Services;
 
 public sealed class Hl7Options
 {
-    public const string SectionName = "Hl7Mllp";
+    public const string SectionName = "Hl7";
 
     public required string Host { get; init; }
 

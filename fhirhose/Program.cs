@@ -11,7 +11,12 @@ using PathologyOrders.Configuration;
 using PathologyOrders.Data;
 using PathologyOrders.Services;
 
-var builder = Host.CreateApplicationBuilder(args);
+// Load appsettings.json from the build output so the app runs from any working directory.
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
 builder.Services
     .AddOptions<FhirOptions>()

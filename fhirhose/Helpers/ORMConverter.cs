@@ -1,6 +1,5 @@
 using System.Globalization;
 using Hl7.Fhir.Model;
-using Hl7.Fhir.Model.CdsHooks;
 using Hl7.Fhir.Serialization;
 using NHapi.Base.Model;
 using NHapi.Base.Parser;
@@ -10,16 +9,17 @@ public sealed class FhirOrmConverter
 {
     private readonly PipeParser _pipeParser = new();
 
-    public ORM_O01 ConvertJson(string json)
+    public ORM_O01 ConvertJson(string bundleJson)
     {
         var parser = new FhirJsonParser();
 
-        var serviceRequest = parser.Parse<ServiceRequest>(json);
+        if (parser.Parse<Bundle>(bundleJson) is not Bundle bundle)
+            throw new InvalidOperationException("FHIR JSON is not a Bundle.");
 
-        return Convert(serviceRequest);
+        return Convert(bundle);
     }
 
-    public ORM_O01 Convert(ServiceRequest bundle)
+    public ORM_O01 Convert(Bundle bundle)
     {
         ArgumentNullException.ThrowIfNull(bundle);
 

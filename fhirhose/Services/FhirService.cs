@@ -25,7 +25,8 @@ public sealed class FhirOrderService
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var searchParameters = new SearchParams()
-            .LimitTo(_options.PageSize);
+            .LimitTo(_options.PageSize)
+            .Include("ServiceRequest:subject");
 
         foreach (var parameter in _options.SearchParameters)
         {

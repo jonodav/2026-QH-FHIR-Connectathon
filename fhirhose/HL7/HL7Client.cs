@@ -3,12 +3,10 @@ using System.Text;
 using fhirhose.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NHapi.Base.Parser;
-using NHapi.Base.Util;
 
 namespace fhirhose.HL7;
 
-public sealed class Hl7MllpClient
+public sealed class Hl7MllpClient : IHl7Client
 {
     private const byte StartBlock = 0x0B;
     private const byte EndBlock = 0x1C;
@@ -16,7 +14,6 @@ public sealed class Hl7MllpClient
 
     private readonly Hl7Options _options;
     private readonly ILogger<Hl7MllpClient> _logger;
-    private readonly PipeParser _parser = new();
 
     public Hl7MllpClient(
         IOptions<Hl7Options> options,
@@ -26,7 +23,7 @@ public sealed class Hl7MllpClient
         _logger = logger;
     }
 
-    public async Task<MllpAcknowledgement> SendAsync(
+    public async Task<Hl7Acknowledgement> SendAsync(
         string payload,
         CancellationToken cancellationToken = default)
     {
@@ -84,7 +81,7 @@ public sealed class Hl7MllpClient
         var acknowledgementPayload =
             await ReadMllpMessageAsync(stream, cancellationToken);
 
-        return ParseAcknowledgement(acknowledgementPayload);
+        return Hl7Acknowledgement.Parse(acknowledgementPayload);
     }
 
     private async Task<string> ReadMllpMessageAsync(
@@ -147,35 +144,5 @@ public sealed class Hl7MllpClient
         }
 
         return Encoding.UTF8.GetString(buffer.ToArray());
-    }
-
-    private MllpAcknowledgement ParseAcknowledgement(string payload)
-    {
-        var acknowledgement = _parser.Parse(payload);
-        var terser = new Terser(acknowledgement);
-
-        var code = terser.Get("/MSA-1");
-
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            throw new InvalidOperationException(
-                "The received HL7 response does not contain MSA-1.");
-        }
-
-        return new MllpAcknowledgement(
-            Code: code,
-            MessageControlId: terser.Get("/MSA-2"),
-            Text: terser.Get("/MSA-3"),
-            Payload: payload);
-    }
-
-    public sealed record MllpAcknowledgement(
-        string Code,
-        string? MessageControlId,
-        string? Text,
-        string Payload)
-    {
-        public bool IsAccepted =>
-            Code is "AA" or "CA";
     }
 }

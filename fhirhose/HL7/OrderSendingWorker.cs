@@ -106,8 +106,8 @@ public sealed class OrderSendingWorker : BackgroundService
         var dbContext =
             scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var mllpClient =
-            scope.ServiceProvider.GetRequiredService<Hl7MllpClient>();
+        var hl7Client =
+            scope.ServiceProvider.GetRequiredService<IHl7Client>();
 
         var message = await dbContext.Hl7OutboundMessages
             .SingleOrDefaultAsync(
@@ -134,7 +134,7 @@ public sealed class OrderSendingWorker : BackgroundService
 
         try
         {
-            var acknowledgement = await mllpClient.SendAsync(
+            var acknowledgement = await hl7Client.SendAsync(
                 message.Payload,
                 cancellationToken);
 

@@ -30,7 +30,15 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services
-    .AddOptions<Hl7Options>().Bind(builder.Configuration.GetSection(Hl7Options.SectionName));
+    .AddOptions<Hl7Options>()
+    .Bind(builder.Configuration.GetSection(Hl7Options.SectionName))
+    .Validate(
+        options => options.Transport != Hl7Transport.Mllp || !string.IsNullOrWhiteSpace(options.Host),
+        "HL7 Host is required when Transport is Mllp")
+    .Validate(
+        options => options.Transport != Hl7Transport.Http || Uri.TryCreate(options.HttpUrl, UriKind.Absolute, out _),
+        "HL7 HttpUrl must be a valid absolute URL when Transport is Http")
+    .ValidateOnStart();
 
 var connectionString =
     builder.Configuration.GetConnectionString("OrdersDatabase")
@@ -73,7 +81,19 @@ builder.Services.AddSingleton(
         }));
 
 builder.Services.AddScoped<IHl7OutboundQueue, Hl7OutboundQueue>();
-builder.Services.AddScoped<Hl7MllpClient, Hl7MllpClient>();
+
+var hl7Transport = builder.Configuration
+    .GetSection(Hl7Options.SectionName)
+    .GetValue(nameof(Hl7Options.Transport), Hl7Transport.Mllp);
+
+if (hl7Transport == Hl7Transport.Http)
+{
+    builder.Services.AddHttpClient<IHl7Client, Hl7HttpClient>();
+}
+else
+{
+    builder.Services.AddScoped<IHl7Client, Hl7MllpClient>();
+}
 
 builder.Services.AddHostedService<OrderSendingWorker>();
 
